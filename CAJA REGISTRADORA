@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Caja registradora</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --primary: #1e508c;
+      --primary-dark: #12375f;
+      --background: #f4f7fb;
+      --surface: #ffffff;
+      --border: #d8e0eb;
+      --success: #08783f;
+      --danger: #b42318;
+      --text: #1d2733;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: var(--text);
+      background: linear-gradient(135deg, #edf4fc, var(--background));
+    }
+    button, input, select { font: inherit; }
+    button {
+      border: 0;
+      border-radius: 6px;
+      padding: 9px 13px;
+      color: white;
+      background: var(--primary);
+      cursor: pointer;
+      transition: background .15s, transform .15s;
+    }
+    button:hover { background: var(--primary-dark); }
+    button:active { transform: translateY(1px); }
+    button.secondary { background: #62748a; }
+    button.danger { background: var(--danger); }
+    .app { width: min(1180px, calc(100% - 28px)); margin: 20px auto; }
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; margin-bottom: 16px;
+    }
+    h1 { margin: 0; color: var(--primary); font-size: clamp(1.6rem, 4vw, 2.25rem); }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; box-shadow: 0 5px 18px #17365d12; padding: 16px;
+    }
+    .controls { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+    .field { display: flex; flex-direction: column; gap: 4px; min-width: 145px; }
+    label { font-size: .85rem; font-weight: 600; color: #536274; }
+    input, select {
+      min-height: 38px; border: 1px solid #b8c5d5; border-radius: 6px;
+      padding: 7px 9px; background: white; color: var(--text);
+    }
+    .grid { display: grid; grid-template-columns: 1.35fr .85fr; gap: 16px; }
+    .table-wrap { overflow-x: auto; margin-top: 15px; }
+    table { width: 100%; border-collapse: collapse; min-width: 520px; }
+    th, td { padding: 10px 8px; border-bottom: 1px solid var(--border); text-align: left; }
+    th { color: #526276; font-size: .85rem; background: #f7f9fc; }
+    td:last-child, th:last-child { text-align: right; }
+    .empty { color: #68788a; text-align: center; padding: 24px; }
+    .summary { display: flex; flex-direction: column; gap: 14px; }
+    .total { display: flex; justify-content: space-between; font-size: 1.4rem; font-weight: 700; }
+    .change { color: var(--success); }
+    .summary-actions, .admin-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .notice { min-height: 22px; margin: 4px 0 0; font-size: .9rem; color: var(--danger); }
+    dialog {
+      width: min(650px, calc(100% - 30px)); border: 0; border-radius: 10px;
+      padding: 0; box-shadow: 0 14px 50px #001a3a45;
+    }
+    dialog::backdrop { background: #09223d66; }
+    .dialog-content { padding: 20px; }
+    .dialog-content h2 { margin: 0 0 14px; color: var(--primary); }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .form-grid .field { min-width: 0; }
+    .admin-list { max-height: 330px; overflow: auto; white-space: pre-wrap; background: #f7f9fc; padding: 12px; border-radius: 6px; }
+    @media (max-width: 800px) {
+      .grid { grid-template-columns: 1fr; }
+      header { align-items: flex-start; flex-direction: column; }
+    }
+    @media (max-width: 500px) { .form-grid { grid-template-columns: 1fr; } .app { width: calc(100% - 18px); margin: 10px auto; } }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <h1>CAJA REGISTRADORA</h1>
+      <button id="adminButton">Administración</button>
+    </header>
+
+    <section class="grid">
+      <section class="card">
+        <div class="controls">
+          <div class="field" style="flex: 1 1 230px">
+            <label for="productSelect">Producto</label>
+            <select id="productSelect"></select>
+          </div>
+          <div class="field" style="width: 100px">
+            <label for="quantity">Cantidad</label>
+            <input id="quantity" type="number" min="1" max="99" value="1">
+          </div>
+          <button id="addButton">Agregar</button>
+          <button class="secondary" id="newProductButton">Agregar producto</button>
+        </div>
+        <p class="notice" id="message"></p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Subtotal</th><th></th></tr></thead>
+            <tbody id="cartBody"></tbody>
+          </table>
+        </div>
+        <div class="summary-actions" style="margin-top: 14px">
+          <button class="secondary" id="removeButton">Quitar seleccionado</button>
+          <button class="secondary" id="increaseButton">+1</button>
+          <button class="secondary" id="decreaseButton">-1</button>
+          <button class="danger" id="clearButton">Vaciar carrito</button>
+        </div>
+      </section>
+
+      <aside class="card summary">
+        <div class="total"><span>Total:</span><span id="total">$0.00</span></div>
+        <div class="field">
+          <label for="payment">Pago recibido</label>
+          <input id="payment" type="number" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <button id="changeButton">Calcular cambio</button>
+        <div class="total change"><span>Cambio:</span><span id="change">$0.00</span></div>
+        <div class="summary-actions">
+          <button id="chargeButton">Cobrar venta</button>
+          <button class="secondary" id="newSaleButton">Nueva venta</button>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <dialog id="adminDialog">
+    <div class="dialog-content">
+      <h2>Administración</h2>
+      <div class="admin-actions">
+        <button data-admin="products">Listar productos</button>
+        <button data-admin="clients">Listar clientes</button>
+        <button data-admin="debts">Ver deudas</button>
+        <button data-admin="invoices">Ver facturas</button>
+        <button data-admin="earnings">Ver ganancias</button>
+        <button data-admin="addClient">Agregar cliente</button>
+        <button data-admin="editProduct">Editar producto</button>
+        <button data-admin="deleteProduct">Eliminar producto</button>
+        <button data-admin="payDebt">Pagar deuda</button>
+      </div>
+      <pre class="admin-list" id="adminOutput" hidden></pre>
+      <div class="dialog-actions"><button class="secondary" id="closeAdminButton">Cerrar</button></div>
+    </div>
+  </dialog>
+
+  <dialog id="productDialog">
+    <form method="dialog" class="dialog-content" id="productForm">
+      <h2>Agregar producto</h2>
+      <div class="form-grid">
+        <div class="field"><label for="productCode">Código</label><input id="productCode" required></div>
+        <div class="field"><label for="productName">Nombre</label><input id="productName" required></div>
+        <div class="field"><label for="productPrice">Precio</label><input id="productPrice" type="number" min="0.01" step="0.01" required></div>
+        <div class="field"><label for="productStock">Cantidad</label><input id="productStock" type="number" min="0" step="1" required></div>
+      </div>
+      <div class="dialog-actions"><button value="cancel" class="secondary">Cancelar</button><button value="default">Guardar</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="paymentDialog">
+    <form method="dialog" class="dialog-content" id="paymentForm">
+      <h2> cobrar venta</h2>
+      <div class="field">
+        <label for="customerId">Cédula del cliente</label>
+        <input id="customerId" required value="1052734305">
+      </div>
+      <div class="field" style="margin-top: 10px">
+        <label for="paymentMethod">Método de pago</label>
+        <select id="paymentMethod">
+          <option>Efectivo</option>
+          <option>Tarjeta</option>
+          <option>Fiar</option>
+        </select>
+      </div>
+      <div class="dialog-actions">
+        <button value="cancel" class="secondary">Cancelar</button>
+        <button value="default">Confirmar cobro</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="passwordDialog">
+    <form method="dialog" class="dialog-content" id="passwordForm">
+      <h2>Acceso administrativo</h2>
+      <div class="field">
+        <label for="adminPassword">Contraseña</label>
+        <input id="adminPassword" type="password" required>
+      </div>
+      <div class="dialog-actions">
+        <button value="cancel" class="secondary">Cancelar</button>
+        <button value="default">Entrar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    "use strict";
+    const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+    const inventory = new Map([
+      ["1227", { code: "1227", name: "Arroz", price: 2500, stock: 345 }],
+      ["1228", { code: "1228", name: "Leche", price: 1800, stock: 50 }],
+      ["1229", { code: "1229", name: "Pan", price: 1250, stock: 80 }]
+    ]);
+    const clients = new Map([["1052734305", { id: "1052734305", name: "Camilo Vargas", phone: "3235305660", email: "camilo@email.com" }]]);
+    const debts = new Map(), invoices = [], cart = [], state = { earnings: 0, selected: -1 };
+    const $ = id => document.getElementById(id);
+    const message = text => { $("message").textContent = text; setTimeout(() => { if ($("message").textContent === text) $("message").textContent = ""; }, 3500); };
+    const total = () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    function refreshProducts() {
+      $("productSelect").innerHTML = "";
+      for (const product of inventory.values()) {
+        const option = new Option(`${product.name} - ${money.format(product.price)} (stock: ${product.stock})`, product.code);
+        option.disabled = product.stock === 0; $("productSelect").add(option);
+      }
+    }
+    function refreshCart() {
+      const body = $("cartBody"); body.innerHTML = "";
+      if (!cart.length) body.innerHTML = '<tr><td colspan="5" class="empty">No hay productos en el carrito.</td></tr>';
+      cart.forEach((item, index) => {
+        const row = body.insertRow(); row.className = index === state.selected ? "selected" : "";
+        row.onclick = () => { state.selected = index; refreshCart(); };
+        row.insertCell().textContent = item.name; row.insertCell().textContent = item.quantity;
+        row.insertCell().textContent = money.format(item.price); row.insertCell().textContent = money.format(item.price * item.quantity);
+        const remove = row.insertCell(); const button = document.createElement("button"); button.textContent = "Quitar"; button.className = "danger";
+        button.onclick = event => { event.stopPropagation(); removeItem(index); }; remove.append(button);
+      });
+      $("total").textContent = money.format(total()); $("change").textContent = money.format(0);
+    }
+    function removeItem(index) { const item = cart.splice(index, 1)[0]; inventory.get(item.code).stock += item.quantity; state.selected = -1; refreshProducts(); refreshCart(); }
+    function addProduct() {
+      const product = inventory.get($("productSelect").value), quantity = Number($("quantity").value);
+      if (!product || !Number.isInteger(quantity) || quantity < 1 || quantity > 99) return message("La cantidad debe ser un entero entre 1 y 99.");
+      if (quantity > product.stock) return message("No hay suficientes existencias.");
+      product.stock -= quantity; const existing = cart.find(item => item.code === product.code);
+      if (existing) existing.quantity += quantity; else cart.push({ code: product.code, name: product.name, price: product.price, quantity });
+      refreshProducts(); refreshCart();
+    }
+    function changeSelected(amount) {
+      if (state.selected < 0 || !cart[state.selected]) return message("Selecciona un producto primero.");
+      const item = cart[state.selected], product = inventory.get(item.code), next = item.quantity + amount;
+      if (next <= 0) return removeItem(state.selected);
+      if (amount > 0 && product.stock < amount) return message("No hay más existencias.");
+      product.stock -= amount; item.quantity = next; refreshProducts(); refreshCart();
+    }
+    function calculateChange() {
+      const received = Number($("payment").value), value = total();
+      if (!Number.isFinite(received) || received < value) { $("change").textContent = money.format(0); message("El pago es menor que el total o no es válido."); return false; }
+      $("change").textContent = money.format(received - value); return true;
+    }
+    function newSale(returnStock = false) { if (returnStock) cart.forEach(item => inventory.get(item.code).stock += item.quantity); cart.length = 0; state.selected = -1; $("payment").value = ""; refreshProducts(); refreshCart(); }
+    function chargeSale() {
+      if (!cart.length) return message("Agrega al menos un producto.");
+      if (!calculateChange()) return;
+      $("paymentDialog").showModal();
+    }
+    function finishCharge() {
+      const id = $("customerId").value.trim(), method = $("paymentMethod").value;
+      if (!clients.has(id)) return message("Cliente no encontrado. Agrégalo desde Administración.");
+      const value = total(); if (method === "Fiar") debts.set(id, (debts.get(id) || 0) + value); else state.earnings += value;
+      invoices.push({ client: clients.get(id).name, items: cart.map(item => `${item.name} x${item.quantity}`), total: value, method });
+      alert("Venta cobrada correctamente."); newSale();
+    }
+    function showAdminOutput(text) { $("adminOutput").hidden = false; $("adminOutput").textContent = text; }
+    function adminAction(action) {
+      if (action === "products") showAdminOutput([...inventory.values()].map(p => `${p.code} - ${p.name} - ${money.format(p.price)} - Stock: ${p.stock}`).join("\n") || "No hay productos.");
+      if (action === "clients") showAdminOutput([...clients.values()].map(c => `${c.id} - ${c.name} - ${c.phone} - ${c.email}`).join("\n") || "No hay clientes.");
+      if (action === "debts") showAdminOutput([...debts].map(([id, value]) => `${clients.get(id).name}: ${money.format(value)}`).join("\n") || "No hay deudas.");
+      if (action === "invoices") showAdminOutput(invoices.map((f, i) => `Factura ${i + 1}\nCliente: ${f.client}\nMétodo: ${f.method}\nProductos: ${f.items.join(", ")}\nTotal: ${money.format(f.total)}`).join("\n\n") || "No hay facturas.");
+      if (action === "earnings") showAdminOutput(`Ganancias: ${money.format(state.earnings)}`);
+      if (action === "addClient") {
+        const id = prompt("Cédula:"), name = prompt("Nombre:"), phone = prompt("Teléfono:"), email = prompt("Correo:");
+        if (id && name && !clients.has(id)) { clients.set(id, { id, name, phone: phone || "", email: email || "" }); showAdminOutput("Cliente agregado."); } else message("No se pudo agregar el cliente.");
+      }
+      if (action === "deleteProduct") { const code = prompt("Código del producto:"); if (code && inventory.delete(code)) { refreshProducts(); showAdminOutput("Producto eliminado."); } else message("Producto no encontrado."); }
+      if (action === "editProduct") { const code = prompt("Código del producto:"), product = inventory.get(code); if (!product) return message("Producto no encontrado."); const price = Number(prompt("Nuevo precio:", product.price)), stock = Number(prompt("Nueva cantidad:", product.stock)); if (price > 0 && Number.isInteger(stock) && stock >= 0) { product.price = price; product.stock = stock; refreshProducts(); showAdminOutput("Producto actualizado."); } else message("Datos inválidos."); }
+      if (action === "payDebt") { const id = prompt("Cédula:"), debt = debts.get(id), value = Number(prompt(`Deuda: ${money.format(debt || 0)}\nPago:`)); if (debt && value > 0 && value <= debt) { state.earnings += value; value === debt ? debts.delete(id) : debts.set(id, debt - value); showAdminOutput("Pago registrado."); } else message("Monto inválido."); }
+    }
+    $("addButton").onclick = addProduct; $("removeButton").onclick = () => state.selected >= 0 ? removeItem(state.selected) : message("Selecciona un producto para quitarlo.");
+    $("increaseButton").onclick = () => changeSelected(1); $("decreaseButton").onclick = () => changeSelected(-1);
+    $("clearButton").onclick = () => { if (cart.length && confirm("¿Deseas quitar todos los productos?")) newSale(true); };
+    $("newSaleButton").onclick = () => newSale(true); $("changeButton").onclick = calculateChange; $("chargeButton").onclick = chargeSale;
+    $("paymentForm").onsubmit = event => { event.preventDefault(); $("paymentDialog").close(); finishCharge(); };
+    $("newProductButton").onclick = () => $("productDialog").showModal();
+    $("productForm").onsubmit = event => { event.preventDefault(); const code = $("productCode").value.trim(), name = $("productName").value.trim(), price = Number($("productPrice").value), stock = Number($("productStock").value); if (!code || !name || inventory.has(code) || price <= 0 || !Number.isInteger(stock) || stock < 0) return message("Datos inválidos o código repetido."); inventory.set(code, { code, name, price, stock }); refreshProducts(); $("productDialog").close(); event.target.reset(); };
+    $("adminButton").onclick = () => $("passwordDialog").showModal();
+    $("passwordForm").onsubmit = event => { event.preventDefault(); const password = $("adminPassword").value; $("passwordDialog").close(); $("adminPassword").value = ""; if (password === "123456789") { $("adminOutput").hidden = true; $("adminDialog").showModal(); } else message("Acceso denegado."); };
+    $("closeAdminButton").onclick = () => $("adminDialog").close(); document.querySelectorAll("[data-admin]").forEach(button => button.onclick = () => adminAction(button.dataset.admin));
+    refreshProducts(); refreshCart();
+  </script>
+</body>
+</html>
+>
